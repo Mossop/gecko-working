@@ -11,12 +11,14 @@
 #include "nsRemoteServer.h"
 #include "nsIObserver.h"
 #include "nsIRemoteService.h"
+#include "mozilla/ThreadSafeWeakPtr.h"
 #include "mozilla/UniquePtr.h"
 #include "nsIFile.h"
 #include "nsProfileLock.h"
 #include "mozilla/MozPromise.h"
 
-class nsStartupLock final {
+class nsStartupLock final
+    : public mozilla::SupportsThreadSafeWeakPtr<nsStartupLock> {
  public:
   NS_INLINE_DECL_THREADSAFE_REFCOUNTING(nsStartupLock)
 
@@ -83,7 +85,7 @@ class nsRemoteService final : public nsIObserver, public nsIRemoteService {
 
   // There can only ever be one startup lock so to simplify things hold these
   // statically.
-  static nsStartupLock* gStartupLock;
+  static mozilla::ThreadSafeWeakPtr<nsStartupLock> gStartupLock;
   static mozilla::StaticRefPtr<nsRemoteService::StartupLockPromise>
       gStartupLockPromise;
 

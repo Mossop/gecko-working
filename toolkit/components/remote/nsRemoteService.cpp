@@ -49,11 +49,9 @@ nsStartupLock::~nsStartupLock() {
   mLock.Cleanup();
 
   mDir->Remove(false);
-
-  nsRemoteService::gStartupLock = nullptr;
 }
 
-nsStartupLock* nsRemoteService::gStartupLock = nullptr;
+ThreadSafeWeakPtr<nsStartupLock> nsRemoteService::gStartupLock;
 StaticRefPtr<nsRemoteService::StartupLockPromise>
     nsRemoteService::gStartupLockPromise;
 
@@ -104,8 +102,9 @@ static nsresult AcquireLock(nsIFile* aMutexDir, double aTimeout,
 RefPtr<nsRemoteService::StartupLockPromise> nsRemoteService::AsyncLockStartup(
     double aTimeout) {
   // If startup is already locked we can just resolve immediately.
-  if (gStartupLock) {
-    return StartupLockPromise::CreateAndResolve(gStartupLock, __func__);
+  RefPtr<nsStartupLock> lock(gStartupLock);
+  if (lock) {
+    return StartupLockPromise::CreateAndResolve(lock, __func__);
   }
 
   // If there is already an executing promise we can just return that otherwise
@@ -161,8 +160,9 @@ already_AddRefed<nsStartupLock> nsRemoteService::LockStartup() {
                      "Should not have started an asynchronous lock attempt");
 
   // If we're already locked just return the current lock.
-  if (gStartupLock) {
-    return do_AddRef(gStartupLock);
+  RefPtr<nsStartupLock> lock(gStartupLock);
+  if (lock) {
+    return lock.forget();
   }
 
   nsCOMPtr<nsIFile> mutexDir;
