@@ -13,14 +13,17 @@
 #include "mozilla/SpinEventLoopUntil.h"
 #include "mozilla/SystemPrincipal.h"
 #include "mozilla/UniquePtr.h"
+#include "nsIChannel.h"
 #include "nsILoadInfo.h"
 #include "nsISVGPaintContext.h"
 #include "nsMimeTypes.h"
 #include "nsStreamUtils.h"
 #include "nsWindowGfx.h"
+#include "SystemPrincipal.h"
 
 #include "gtest/gtest.h"
 
+using namespace mozilla;
 using namespace mozilla::image;
 
 const char* SVG_GREEN_CIRCLE =
