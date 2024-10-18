@@ -3,6 +3,10 @@ https://creativecommons.org/publicdomain/zero/1.0/ */
 
 "use strict";
 
+add_setup(async () => {
+  await setupMockDB();
+});
+
 add_task(
   {
     skip_if: () => !AppConstants.MOZ_SELECTABLE_PROFILES,

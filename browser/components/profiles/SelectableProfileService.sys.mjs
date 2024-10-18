@@ -48,6 +48,7 @@ class SelectableProfileServiceClass {
   #asyncShutdownBlocker = null;
   #initialized = false;
   #groupToolkitProfile = null;
+  #storeID = null;
   #currentProfile = null;
   #everyWindowCallbackId = "SelectableProfileService";
   #defaultAvatars = [
@@ -60,14 +61,22 @@ class SelectableProfileServiceClass {
   ];
 
   constructor() {
-    if (Cu.isInAutomation) {
-      this.#groupToolkitProfile = {
-        storeID: "12345678",
-        rootDir: Services.dirsvc.get("ProfD", Ci.nsIFile),
-      };
-    } else {
-      this.#groupToolkitProfile =
-        lazy.ProfileService.currentProfile ?? lazy.ProfileService.groupProfile;
+    this.#groupToolkitProfile =
+      lazy.ProfileService.currentProfile ?? lazy.ProfileService.groupProfile;
+
+    this.#storeID = this.#groupToolkitProfile?.storeID;
+
+    if (!this.#storeID) {
+      this.#storeID = Services.prefs.getCharPref(
+        "toolkit.profiles.storeID",
+        ""
+      );
+      if (this.#storeID) {
+        // This can happen if profiles.ini has been reset by a version of Firefox prior to 67 and
+        // the current profile is not the current default for the group. We can recover by
+        // attempting to find the group profile from the database.
+        this.restoreStoreID().catch(console.error);
+      }
     }
   }
 
@@ -76,6 +85,10 @@ class SelectableProfileServiceClass {
     if (Cu.isInAutomation) {
       this.#groupToolkitProfile = mockToolkitProfile;
     }
+  }
+
+  get storeID() {
+    return this.#storeID;
   }
 
   get groupToolkitProfile() {
@@ -102,7 +115,7 @@ class SelectableProfileServiceClass {
   }
 
   async maybeCreateProfilesStorePath() {
-    if (this.#groupToolkitProfile.storeID) {
+    if (this.storeID) {
       return;
     }
 
@@ -116,6 +129,7 @@ class SelectableProfileServiceClass {
       .replace("{", "")
       .split("-")[0];
     this.#groupToolkitProfile.storeID = storageID;
+    this.#storeID = storageID;
     await attemptFlush();
   }
 
@@ -124,7 +138,7 @@ class SelectableProfileServiceClass {
 
     return PathUtils.join(
       SelectableProfileServiceClass.PROFILE_GROUPS_DIR,
-      `${this.#groupToolkitProfile.storeID}.sqlite`
+      `${this.storeID}.sqlite`
     );
   }
 
@@ -139,7 +153,7 @@ class SelectableProfileServiceClass {
 
     // If the storeID doesn't exist, we don't want to create the db until we
     // need to so we early return.
-    if (!this.groupToolkitProfile.storeID) {
+    if (!this.storeID) {
       return;
     }
 
@@ -253,6 +267,20 @@ class SelectableProfileServiceClass {
     }
   }
 
+  async restoreStoreID() {
+    await this.init();
+
+    for (let profile of await this.getAllProfiles()) {
+      let groupProfile = lazy.ProfileService.getProfileByDir(profile.path);
+      if (groupProfile) {
+        this.#groupToolkitProfile = groupProfile;
+        this.#groupToolkitProfile.storeID = this.storeID;
+        lazy.ProfileService.flush();
+        return;
+      }
+    }
+  }
+
   async handleEvent(event) {
     switch (event.type) {
       case "activate": {
@@ -328,11 +356,12 @@ class SelectableProfileServiceClass {
    * and vacuum the group DB.
    */
   async deleteProfileGroup() {
-    if (this.getAllProfiles().length) {
+    if ((await this.getAllProfiles()).length) {
       return;
     }
 
     this.#groupToolkitProfile.storeID = null;
+    this.#storeID = null;
     await attemptFlush();
     await this.vacuumAndCloseGroupDB();
   }

@@ -2,6 +2,8 @@
 head = "head.js"
 firefox-appdir = "browser"
 
+["test_recover_storeID.js"]
+
 ["test_selectable_profile_launch.js"]
 
 ["test_selectable_profile_service_exists.js"]

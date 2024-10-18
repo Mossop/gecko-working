@@ -13,6 +13,13 @@ const { SelectableProfile } = ChromeUtils.importESModule(
 const storeID = "12345678";
 var gFakeAppDirectoryProvider;
 
+async function writeProfilesIni(data) {
+  let target = Services.dirsvc.get("UAppData", Ci.nsIFile).clone();
+  target.append("profiles.ini");
+
+  await IOUtils.writeUTF8(target.path, data, { flush: true });
+}
+
 function makeFakeProfileDirs() {
   do_get_profile();
 
@@ -92,7 +99,3 @@ async function setupMockDB() {
     `${storeID}.sqlite`
   );
 }
-
-add_setup(async () => {
-  await setupMockDB();
-});
