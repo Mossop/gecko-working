@@ -143,8 +143,7 @@ export class ProfilesParent extends JSWindowActorParent {
   async receiveMessage(message) {
     switch (message.name) {
       case "Profiles:DeleteProfile": {
-        // TODO (bug 1918523): update default and handle deletion in a
-        //                     background task.
+        await SelectableProfileService.deleteCurrentProfile();
         break;
       }
       case "Profiles:CancelDelete": {
